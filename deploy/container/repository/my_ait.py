@@ -174,11 +174,11 @@ if not is_ait_launch:
                                              requirement=inventory_requirement_trained_model)
     #### Parameters
     manifest_genenerator.add_ait_parameters(name='image_dataset_name', 
-                                            type_='string', 
+                                            type_='str', 
                                             description='dataset inventoryで説明されているデータセット(1)の名前', 
                                             default_val='image_name')
     manifest_genenerator.add_ait_parameters(name='label_dataset_name', 
-                                            type_='string', 
+                                            type_='str', 
                                             description='dataset inventoryで説明されているデータセット(2)の名前', 
                                             default_val='label_name')
     manifest_genenerator.add_ait_parameters(name='dataset_channel',
@@ -202,7 +202,7 @@ if not is_ait_launch:
                                             min_value='0.01',
                                             max_value='1')
     manifest_genenerator.add_ait_parameters(name='norm',
-                                            type_='string',
+                                            type_='str',
                                             description='制約に使用するノルム.1の場合L1ノルム、2の場合L2ノルム、infの場合L∞ノルムを使用する',
                                             default_val='2')                                         
     manifest_genenerator.add_ait_parameters(name='epsilon',

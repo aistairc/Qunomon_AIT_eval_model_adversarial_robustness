@@ -38,13 +38,13 @@
   "parameters": [
     {
       "name": "image_dataset_name",
-      "type": "string",
+      "type": "str",
       "description": "dataset inventoryで説明されているデータセット(1)の名前",
       "default_val": "image_name"
     },
     {
       "name": "label_dataset_name",
-      "type": "string",
+      "type": "str",
       "description": "dataset inventoryで説明されているデータセット(2)の名前",
       "default_val": "label_name"
     },
@@ -78,7 +78,7 @@
     },
     {
       "name": "norm",
-      "type": "string",
+      "type": "str",
       "description": "制約に使用するノルム.1の場合L1ノルム、2の場合L2ノルム、infの場合L∞ノルムを使用する",
       "default_val": "2"
     },
