@@ -27,7 +27,7 @@
     {
       "name": "trained_model",
       "type": "model",
-      "description": "torch.jit.save関数を使用しTorchScript形式で保存されたモデルデータ。入力と出力の要素数はtest_dataset inventoryと一致させる",
+      "description": "torch.jit.save関数を使用しTorchScript形式で保存されたモデルデータ。入力と出力の要素数はinput_dataset inventoryと一致させる",
       "requirement": {
         "format": [
           "pth"
@@ -39,19 +39,19 @@
     {
       "name": "image_dataset_name",
       "type": "str",
-      "description": "dataset inventoryで説明されているデータセット(1)の名前",
+      "description": "input_dataset inventoryで説明されているデータセット(1)の名前",
       "default_val": "image_name"
     },
     {
       "name": "label_dataset_name",
       "type": "str",
-      "description": "dataset inventoryで説明されているデータセット(2)の名前",
+      "description": "input_dataset inventoryで説明されているデータセット(2)の名前",
       "default_val": "label_name"
     },
     {
       "name": "dataset_channel",
       "type": "int",
-      "description": "dataset inventoryで説明されているデータセット(1)入力データセットのチャネル数(グレースケール画像の場合1、RGB画像の場合3)",
+      "description": "input_dataset inventoryで説明されているデータセット(1)入力データセットのチャネル数(グレースケール画像の場合1、RGB画像の場合3)",
       "default_val": "1"
     },
     {

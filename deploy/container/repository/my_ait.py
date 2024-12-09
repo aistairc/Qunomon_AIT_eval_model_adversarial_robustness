@@ -38,7 +38,7 @@
 
 # [uneditable]
 
-# In[ ]:
+# In[1]:
 
 
 # Determine whether to start AIT or jupyter by startup argument
@@ -170,21 +170,21 @@ if not is_ait_launch:
     inventory_requirement_trained_model = manifest_genenerator.format_ait_inventory_requirement(format_=['pth'])
     manifest_genenerator.add_ait_inventories(name='trained_model',
                                              type_='model',
-                                             description='torch.jit.save関数を使用しTorchScript形式で保存されたモデルデータ。入力と出力の要素数はtest_dataset inventoryと一致させる',
+                                             description='torch.jit.save関数を使用しTorchScript形式で保存されたモデルデータ。入力と出力の要素数はinput_dataset inventoryと一致させる',
                                              requirement=inventory_requirement_trained_model)
     #### Parameters
     manifest_genenerator.add_ait_parameters(name='image_dataset_name', 
                                             type_='str', 
-                                            description='dataset inventoryで説明されているデータセット(1)の名前', 
+                                            description='input_dataset inventoryで説明されているデータセット(1)の名前', 
                                             default_val='image_name')
     manifest_genenerator.add_ait_parameters(name='label_dataset_name', 
                                             type_='str', 
-                                            description='dataset inventoryで説明されているデータセット(2)の名前', 
+                                            description='input_dataset inventoryで説明されているデータセット(2)の名前', 
                                             default_val='label_name')
     manifest_genenerator.add_ait_parameters(name='dataset_channel',
                                           type_='int',
                                           default_val='1',
-                                          description='dataset inventoryで説明されているデータセット(1)入力データセットのチャネル数(グレースケール画像の場合1、RGB画像の場合3)')
+                                          description='input_dataset inventoryで説明されているデータセット(1)入力データセットのチャネル数(グレースケール画像の場合1、RGB画像の場合3)')
     manifest_genenerator.add_ait_parameters(name='delta_lower',
                                             type_='float',
                                             description='敵対的摂動δの範囲の下限.敵対的摂動δの範囲の上限よりも小さくする.',
@@ -425,7 +425,8 @@ def print_plot(deltas,class_violation_rate_list,cls, file_path: str=None):
     plt.grid(True)
     plt.savefig(file_path)
     plt.show()
-    plt.close()
+    
+    return file_path
     
     
 
@@ -531,7 +532,7 @@ def main() -> None:
     else:
         raise ValueError("norm not found")
 
-    #各クラスごとのδの値と違反率を計算
+    #各クラスごとの評価値と違反率を計算
     class_robustness, violation_rate_list = calcurate_robustness(classifier,images,labels,channels,epsilon,delta_lower,delta_upper,delta_increment,norm)
     #各クラスごとのモデルのロバストネスの表示
     for cls, robustness in class_robustness.items():
