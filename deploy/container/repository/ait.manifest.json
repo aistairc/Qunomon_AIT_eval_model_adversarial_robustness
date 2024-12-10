@@ -1,0 +1,117 @@
+{
+  "name": "eval_model_image_adversarial_robustness",
+  "description": "モデルに対して、各クラスごとの入力データに摂動を加え敵対的データを距離尺度の制約下で生成し、摂動に対する強度と予測性能の変化を評価して頑強性を測定する。攻撃手法はSquare Attackを使用する。",
+  "source_repository": "https://github.com/aistairc/Qunomon_AIT_eval_model_image_adversarial_robustness",
+  "version": "1.0",
+  "quality": "https://ait-hub.pj.aist.go.jp/ait-hub/api/0.0.1/qualityDimensions/機械学習品質マネジメントガイドライン第三版/C-2機械学習モデルの安定性",
+  "keywords": [
+    "Robustness",
+    "Adversarial",
+    "image"
+  ],
+  "references": [],
+  "licenses": [
+    "Apache License Version 2.0"
+  ],
+  "inventories": [
+    {
+      "name": "input_dataset",
+      "type": "dataset",
+      "description": "HDF5形式のデータセット。内部は2つのHDF5ファイルを用意する(ファイル名は任意)\n(1)モデルに入力される、[-1,1]に正規化されている多次元配列を含むデータセット\n(2)データの各サンプルの正解ラベル（クラスのインデックス値）を含むデータセット\n\nファイル構造:\n sample.h5\n ├(1)入力データセット\n └(2)ラベルデータセット\n",
+      "requirement": {
+        "format": [
+          "h5"
+        ]
+      }
+    },
+    {
+      "name": "trained_model",
+      "type": "model",
+      "description": "torch.jit.save関数を使用しTorchScript形式で保存されたモデルデータ。入力と出力の要素数はinput_dataset inventoryと一致させる",
+      "requirement": {
+        "format": [
+          "pth"
+        ]
+      }
+    }
+  ],
+  "parameters": [
+    {
+      "name": "image_dataset_name",
+      "type": "str",
+      "description": "input_dataset inventoryで説明されているデータセット(1)の名前",
+      "default_val": "image_name"
+    },
+    {
+      "name": "label_dataset_name",
+      "type": "str",
+      "description": "input_dataset inventoryで説明されているデータセット(2)の名前",
+      "default_val": "label_name"
+    },
+    {
+      "name": "dataset_channel",
+      "type": "int",
+      "description": "input_dataset inventoryで説明されているデータセット(1)入力データセットのチャネル数(グレースケール画像の場合1、RGB画像の場合3)",
+      "default_val": "1"
+    },
+    {
+      "name": "delta_lower",
+      "type": "float",
+      "description": "敵対的摂動δの範囲の下限.敵対的摂動δの範囲の上限よりも小さくする.",
+      "default_val": "0",
+      "min": "0"
+    },
+    {
+      "name": "delta_upper",
+      "type": "float",
+      "description": "敵対的摂動δの範囲の上限.敵対的摂動δの範囲の下限よりも大きくする.",
+      "default_val": "3",
+      "max": "10"
+    },
+    {
+      "name": "delta_increment",
+      "type": "float",
+      "description": "敵対的摂動δの増加量",
+      "default_val": "0.1",
+      "min": "0.01",
+      "max": "1"
+    },
+    {
+      "name": "norm",
+      "type": "str",
+      "description": "制約に使用するノルム.1の場合L1ノルム、2の場合L2ノルム、infの場合L∞ノルムを使用する",
+      "default_val": "2"
+    },
+    {
+      "name": "epsilon",
+      "type": "float",
+      "description": "各クラスのモデルの元のデータに対する予測確率と敵対的データに対する予測確率の差の許容範囲（0の場合、モデルの元のデータに対する予測と敵対的データに対する予測が一致しているかを判断する）",
+      "default_val": "0.2",
+      "min": "0",
+      "max": "1"
+    }
+  ],
+  "report": {
+    "measures": [
+      {
+        "name": "Adversarial_Robustness",
+        "type": "float",
+        "description": "敵対的摂動δの値を増加させたとき、各クラスごとの予測確率の差が許容範囲内もしくは予測が一致する最大のδの値を相対化した値.値が大きいほど頑強である.",
+        "structure": "sequence"
+      }
+    ],
+    "resources": [
+      {
+        "name": "Violation_Rate_Transition_Plot",
+        "type": "picture",
+        "description": "敵対的摂動δの値を増加させたとき、各クラスごとのモデルの違反率（予測確率の差が許容範囲外もしくは予測が一致していない割合）の推移のプロット"
+      }
+    ]
+  },
+  "downloads": [
+    {
+      "name": "Log",
+      "description": "AIT実行ログ"
+    }
+  ]
+}
