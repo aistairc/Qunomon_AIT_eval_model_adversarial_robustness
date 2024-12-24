@@ -121,8 +121,10 @@ from art.attacks.evasion import SquareAttack
 from art.estimators.classification import PyTorchClassifier
 import matplotlib.pyplot as plt
 import torch
+import torch.nn.functional as F
 import numpy as np
 import h5py
+import math
 
 
 # #### #4-2 [uneditable]
@@ -153,9 +155,9 @@ if not is_ait_launch:
     from ait_sdk.common.files.ait_manifest_generator import AITManifestGenerator
     manifest_genenerator = AITManifestGenerator(current_dir)
     manifest_genenerator.set_ait_name('eval_model_image_adversarial_robustness')
-    manifest_genenerator.set_ait_description('モデルに対して、各クラスごとの入力データに摂動を加え敵対的データを距離尺度の制約下で生成し、摂動に対する強度と予測性能の変化を評価して頑強性を測定する。攻撃手法はSquare Attackを使用する。')
+    manifest_genenerator.set_ait_description('分類モデルに対して、各クラスごとの入力画像データに摂動を加え敵対的データを距離尺度の制約下で生成し、摂動に対する強度と予測性能の変化を評価して頑強性を測定する。攻撃手法はSquare Attackを使用する。')
     manifest_genenerator.set_ait_source_repository('https://github.com/aistairc/Qunomon_AIT_eval_model_image_adversarial_robustness')
-    manifest_genenerator.set_ait_version('1.0')
+    manifest_genenerator.set_ait_version('1.1')
     manifest_genenerator.add_ait_licenses('Apache License Version 2.0')
     manifest_genenerator.add_ait_keywords('Robustness')
     manifest_genenerator.add_ait_keywords('Adversarial')
@@ -348,35 +350,48 @@ def calcurate_robustness(classifier,images,labels,channels,epsilon,delta_lower,d
 
     #δの範囲の設定
     deltas = np.arange(delta_lower,delta_upper+delta_increment,delta_increment)
-    class_robustness = {cls:None for cls in range(classifier.nb_classes)}
+    class_robustness = {cls:0 for cls in range(classifier.nb_classes)}
 
     for delta in deltas:
         
         if delta ==0:
             #元のデータに対する予測確率
             pred_original = classifier.predict(images)
-            prob_diff = np.abs(pred_original - pred_original)
+            pred_adversarial = pred_original
+            prob_diff = np.abs(pred_original - pred_adversarial)
         else:       
             #Square Attackの初期化
-            square_attack = SquareAttack(estimator = classifier, norm = norm,eps=delta,verbose=False)
+            square_attack = SquareAttack(estimator = classifier, norm = norm,eps=delta,verbose=False,max_iter=50)
             #敵対的データの生成
             adv_images= square_attack.generate(x=images)
             
             #元のデータに対する予測確率
             pred_original = classifier.predict(images)
+            if classifier.nb_classes==2:
+                pred_original = torch.sigmoid(torch.tensor(pred_original)).numpy()
+            else:
+                pred_original = F.softmax(torch.tensor(pred_original),dim=1).numpy()
             #敵対的データに対する予測確率
             pred_adversarial = classifier.predict(adv_images)
+            if classifier.nb_classes==2:
+                pred_adversarial = torch.sigmoid(torch.tensor(pred_adversarial)).numpy()
+            else:
+                pred_adversarial = F.softmax(torch.tensor(pred_adversarial),dim=1).numpy()
             #元のデータに対する予測確率と敵対的データに対する予測確率の差を計算
             prob_diff = np.abs(pred_original - pred_adversarial)
-
+            
         for cls in range(classifier.nb_classes):
             #現在のクラスに対応するデータインデックスの取得
             class_idx = np.where(labels == cls)[0]
             class_prob_diff = prob_diff[class_idx]
             #epsilon=0の時、予測が一致しているかを判断
             if epsilon == 0:
-                pred_original_class = np.argmax(pred_original[class_idx],axis=1)
-                pred_adversarial_class = np.argmax(pred_adversarial[class_idx],axis=1)
+                if classifier.nb_classes==2:
+                    pred_original_class = (pred_original[class_idx]>0.5).astype(int)
+                    pred_adversarial_class = (pred_adversarial[class_idx]>0.5).astype(int)
+                else:
+                    pred_original_class = np.argmax(pred_original[class_idx],axis=1)
+                    pred_adversarial_class = np.argmax(pred_adversarial[class_idx],axis=1)
                 violations = pred_original_class != pred_adversarial_class
             #epsilon!=0のとき、予測確率が許容範囲内かを判断
             else:
@@ -385,14 +400,11 @@ def calcurate_robustness(classifier,images,labels,channels,epsilon,delta_lower,d
             violation_rate = np.mean(violations)
             violation_rate_list.append(violation_rate)
             #違反率が0かつ、一回前のδで更新しているもしくはδの値が下限のとき、δを更新
-            if violation_rate == 0 and (class_robustness[cls]==delta-delta_increment or delta == delta_lower):
+            if violation_rate == 0 and (math.isclose(class_robustness[cls],delta-delta_increment) or delta == delta_lower):
                 class_robustness[cls] = delta
-    
-    #δの相対化とロバストネスの値がNoneのとき、0に変更
+            
+    #δの相対化
     for cls in range(classifier.nb_classes):
-        if class_robustness[cls] == None:
-            class_robustness[cls] = 0
-            continue
         if norm == 1:
             class_robustness[cls] = class_robustness[cls] /(0.5*channels)
         elif norm == 2:
@@ -482,7 +494,8 @@ def main() -> None:
     image_dataset_name = ait_input.get_method_param_value('image_dataset_name')
     label_dataset_name = ait_input.get_method_param_value('label_dataset_name')
     images ,labels =load_h5_data(h5_filepath,image_dataset_name,label_dataset_name)
-
+    max_value = np.max(images)
+    min_value = np.min(images)
     #チャネル数の読み込み
     channels = ait_input.get_method_param_value('dataset_channel')
     
@@ -497,19 +510,20 @@ def main() -> None:
     if num_class > 2:
         loss_fn = torch.nn.CrossEntropyLoss()
     elif num_class == 2:
-        loss_fn = torch.nn.BCWithLogisticLoss()
+        loss_fn = torch.nn.BCEWithLogitsLoss()
     else:
         raise ValueError("The number of classes is not read")
 
     #PyTorchClassifierにラップ
     classifier = PyTorchClassifier(
         model = model,
-        clip_values = (-1,1),
+        clip_values = (min_value,max_value),
         input_shape = input_shape,
         nb_classes = num_class,
         loss= loss_fn,
         optimizer = None
         )
+
     #許容範囲の設定
     epsilon=ait_input.get_method_param_value('epsilon')
     #敵対的摂動δの範囲の設定
