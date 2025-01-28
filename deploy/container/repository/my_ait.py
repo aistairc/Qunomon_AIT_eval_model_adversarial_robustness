@@ -99,7 +99,7 @@ if not is_ait_launch:
 
 # #### #3-3 [uneditable]
 
-# In[ ]:
+# In[5]:
 
 
 if not is_ait_launch:
@@ -113,7 +113,7 @@ if not is_ait_launch:
 
 # #### #4-1 [required]
 
-# In[ ]:
+# In[6]:
 
 
 # import if you need modules cell
@@ -135,7 +135,7 @@ import math
 
 # #### #4-2 [uneditable]
 
-# In[ ]:
+# In[7]:
 
 
 # must use modules
@@ -154,7 +154,7 @@ from ait_sdk.develop.annotation import measures, resources, downloads, ait_main 
 
 # [required]
 
-# In[ ]:
+# In[8]:
 
 
 if not is_ait_launch:
@@ -247,7 +247,7 @@ if not is_ait_launch:
 
 # [required]
 
-# In[ ]:
+# In[9]:
 
 
 if not is_ait_launch:
@@ -281,7 +281,7 @@ if not is_ait_launch:
 
 # [uneditable]
 
-# In[ ]:
+# In[10]:
 
 
 logger = get_logger()
@@ -311,7 +311,7 @@ ait_manifest.read_json(path_helper.get_manifest_file_path())
 
 # [required]
 
-# In[ ]:
+# In[11]:
 
 
 @log(logger)
@@ -335,7 +335,7 @@ def load_h5_data(h5_filepath,image_dataset_name,label_dataset_name, batch_size=6
     return images ,labels
 
 
-# In[ ]:
+# In[12]:
 
 
 @log(logger)
@@ -353,7 +353,7 @@ def images_shape(images,channels):
     return images
 
 
-# In[ ]:
+# In[13]:
 
 
 @log(logger)
@@ -443,7 +443,7 @@ def calcurate_robustness(classifier,images,labels,channels,epsilon,delta_lower,d
     return class_robustness,violation_rate_list
 
 
-# In[ ]:
+# In[14]:
 
 
 @log(logger)
@@ -470,7 +470,7 @@ def print_plot(deltas,class_violation_rate_list,cls, file_path: str=None):
     return file_path
 
 
-# In[ ]:
+# In[15]:
 
 
 @log(logger)
@@ -488,17 +488,16 @@ def Robustness_list(class_robustness,classifier):
     return np.array(Adversarial_Robsutness_list)
 
 
-# In[ ]:
+# In[16]:
 
 
 @log(logger)
-def calculate_empirical_robustness(features_tensor, labels_tensor, deltas, model, regressor, norm):
+def calculate_empirical_robustness(features_tensor, deltas, model, regressor, norm):
     """
     Empirical Robustnessを計算する関数（回帰モデル用）。
 
     Parameters:
     features_tensor (torch.Tensor): 特徴量
-    labels_tensor (torch.Tensor): ラベル（正解値）
     deltas (array-like): 摂動の範囲（delta）
     model (torch.nn.Module): 訓練済み回帰モデル
     regressor (object): 回帰モデル（ARTなどで使用）
@@ -542,7 +541,7 @@ def calculate_empirical_robustness(features_tensor, labels_tensor, deltas, model
     return robustness_values, eps_values
 
 
-# In[ ]:
+# In[17]:
 
 
 @log(logger)
@@ -569,7 +568,7 @@ def plot_robustness(eps_values, robustness_values, file_path: str=None):
     plt.show()
 
 
-# In[ ]:
+# In[18]:
 
 
 @log(logger)
@@ -599,7 +598,7 @@ def find_max_eps_within_robustness(eps_values, robustness_values, epsilon):
     return np.array(max_eps_list)
 
 
-# In[ ]:
+# In[19]:
 
 
 @log(logger)
@@ -612,7 +611,7 @@ def move_log(file_path: str=None) -> str:
 
 # [required]
 
-# In[ ]:
+# In[20]:
 
 
 @log(logger)
@@ -715,10 +714,8 @@ def main() -> None:
 
         # 特徴量（データセットの最後の列をラベルとする）
         features = dataset.iloc[:, :-1].values
-        labels = dataset.iloc[:, -1].values
-        # 特徴量とラベルをPyTorchのTensorに変換
+        # 特徴量をPyTorchのTensorに変換
         features_tensor = torch.tensor(features, dtype=torch.float32)
-        labels_tensor = torch.tensor(labels, dtype=torch.float32)
         # PyTorch Regressorのラップ
         loss_fn = nn.MSELoss()  # 回帰用損失関数
         input_shape = features_tensor.shape[1:]  # 特徴量の数（入力の形状）
@@ -726,7 +723,7 @@ def main() -> None:
         regressor = PyTorchRegressor(model=model, loss=loss_fn, input_shape=input_shape)
         
         # Empirical Robustnessの計算
-        robustness_values, eps_values = calculate_empirical_robustness(features_tensor, labels_tensor, deltas, model, regressor, norm)
+        robustness_values, eps_values = calculate_empirical_robustness(features_tensor, deltas, model, regressor, norm)
             
         # プロット
         plot_robustness(eps_values, robustness_values)
@@ -742,7 +739,7 @@ def main() -> None:
 
 # [uneditable]
 
-# In[ ]:
+# In[21]:
 
 
 if __name__ == '__main__':
@@ -753,7 +750,7 @@ if __name__ == '__main__':
 
 # [required]
 
-# In[ ]:
+# In[22]:
 
 
 ## sample ##
@@ -765,7 +762,7 @@ ait_creation_year='2024'
 
 # [uneditable] 
 
-# In[ ]:
+# In[23]:
 
 
 if not is_ait_launch:
