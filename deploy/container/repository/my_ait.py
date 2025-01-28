@@ -38,7 +38,7 @@
 
 # [uneditable]
 
-# In[1]:
+# In[ ]:
 
 
 # Determine whether to start AIT or jupyter by startup argument
@@ -89,16 +89,17 @@ if not is_ait_launch:
 
 
 if not is_ait_launch:
-    requirements_generator.add_package('adversarial-robustness-toolbox', '1.18.2')
+    requirements_generator.add_package('adversarial-robustness-toolbox', '1.19.0')
     requirements_generator.add_package('numpy','1.26.4')
     requirements_generator.add_package('h5py','3.12.1')
     requirements_generator.add_package('torch','2.5.1')
-    requirements_generator.add_package('matplotlib','3.9.2')
+    requirements_generator.add_package('matplotlib','3.9.4')
+    requirements_generator.add_package('pandas','2.2.3')
 
 
 # #### #3-3 [uneditable]
 
-# In[5]:
+# In[ ]:
 
 
 if not is_ait_launch:
@@ -112,15 +113,21 @@ if not is_ait_launch:
 
 # #### #4-1 [required]
 
-# In[6]:
+# In[ ]:
 
 
 # import if you need modules cell
 
 from art.attacks.evasion import SquareAttack
+from art.attacks.evasion import FastGradientMethod
 from art.estimators.classification import PyTorchClassifier
+from art.estimators.regression import PyTorchRegressor
+from art.metrics import empirical_robustness
+import pandas as pd
 import matplotlib.pyplot as plt
 import torch
+import torch.nn as nn
+import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
 import h5py
@@ -129,7 +136,7 @@ import math
 
 # #### #4-2 [uneditable]
 
-# In[7]:
+# In[ ]:
 
 
 # must use modules
@@ -148,26 +155,28 @@ from ait_sdk.develop.annotation import measures, resources, downloads, ait_main 
 
 # [required]
 
-# In[8]:
+# In[ ]:
 
 
 if not is_ait_launch:
     from ait_sdk.common.files.ait_manifest_generator import AITManifestGenerator
     manifest_genenerator = AITManifestGenerator(current_dir)
-    manifest_genenerator.set_ait_name('eval_model_image_adversarial_robustness')
-    manifest_genenerator.set_ait_description('分類モデルに対して、各クラスごとの入力画像データに摂動を加え敵対的データを距離尺度の制約下で生成し、摂動に対する強度と予測性能の変化を評価して頑強性を測定する。攻撃手法はSquare Attackを使用する。')
-    manifest_genenerator.set_ait_source_repository('https://github.com/aistairc/Qunomon_AIT_eval_model_image_adversarial_robustness')
-    manifest_genenerator.set_ait_version('1.1')
+    manifest_genenerator.set_ait_name('eval_model_adversarial_robustness')
+    manifest_genenerator.set_ait_description('深層学習モデルに対して、入力データに摂動を加え敵対的データを距離尺度の制約下で生成し、摂動に対する強度と予測性能の変化を評価して頑強性を測定する。分類モデルの場合、各クラスごとの入力画像データに摂動を加え敵対的データを生成する。攻撃手法はSquare Attackを使用する。また、回帰モデルの場合、入力テーブルデータに摂動を加え敵対的データを生成する。攻撃手法はFastGradientMethodを使用する。')
+    manifest_genenerator.set_ait_source_repository('https://github.com/aistairc/Qunomon_AIT_eval_model_adversarial_robustness')
+    manifest_genenerator.set_ait_version('1.2')
     manifest_genenerator.add_ait_licenses('Apache License Version 2.0')
     manifest_genenerator.add_ait_keywords('Robustness')
     manifest_genenerator.add_ait_keywords('Adversarial')
+    manifest_genenerator.add_ait_keywords('Empirical')
     manifest_genenerator.add_ait_keywords('image')
+    manifest_genenerator.add_ait_keywords('table')
     manifest_genenerator.set_ait_quality('https://ait-hub.pj.aist.go.jp/ait-hub/api/0.0.1/qualityDimensions/機械学習品質マネジメントガイドライン第三版/C-2機械学習モデルの安定性')
     #### Inventories
-    inventory_requirement_dataset = manifest_genenerator.format_ait_inventory_requirement(format_=['h5'])
+    inventory_requirement_dataset = manifest_genenerator.format_ait_inventory_requirement(format_=['*'])
     manifest_genenerator.add_ait_inventories(name='input_dataset',  
                                              type_='dataset', 
-                                             description='HDF5形式のデータセット。内部は2つのHDF5ファイルを用意する(ファイル名は任意)\n(1)モデルに入力される、[-1,1]に正規化されている多次元配列を含むデータセット\n(2)データの各サンプルの正解ラベル（クラスのインデックス値）を含むデータセット\n\nファイル構造:\n sample.h5\n ├(1)入力データセット\n └(2)ラベルデータセット\n',  
+                                             description='分類モデルの場合、HDF5形式のデータセット。内部は2つのHDF5ファイルを用意する(ファイル名は任意)\n(1)モデルに入力される、[-1,1]に正規化されている多次元配列を含むデータセット\n(2)データの各サンプルの正解ラベル（クラスのインデックス値）を含むデータセット\n\nファイル構造:\n sample.h5\n ├(1)入力データセット\n └(2)ラベルデータセット\n 回帰モデルの場合、CSV形式のデータセット。データセットの最後の列を正解ラベルとし、それ以外を特徴量とする。\n',  
                                              requirement= inventory_requirement_dataset)
     inventory_requirement_trained_model = manifest_genenerator.format_ait_inventory_requirement(format_=['pth'])
     manifest_genenerator.add_ait_inventories(name='trained_model',
@@ -175,18 +184,22 @@ if not is_ait_launch:
                                              description='torch.jit.save関数を使用しTorchScript形式で保存されたモデルデータ。入力と出力の要素数はinput_dataset inventoryと一致させる',
                                              requirement=inventory_requirement_trained_model)
     #### Parameters
+    manifest_genenerator.add_ait_parameters(name='data_type',
+                                            type_='str',
+                                            description='使用するデータセットの種類.[image]または[table]',
+                                            default_val='image')
     manifest_genenerator.add_ait_parameters(name='image_dataset_name', 
                                             type_='str', 
-                                            description='input_dataset inventoryで説明されているデータセット(1)の名前', 
+                                            description='画像データを用いる場合の、input_dataset inventoryで説明されているデータセット(1)の名前', 
                                             default_val='image_name')
     manifest_genenerator.add_ait_parameters(name='label_dataset_name', 
                                             type_='str', 
-                                            description='input_dataset inventoryで説明されているデータセット(2)の名前', 
+                                            description='画像データを用いる場合の、input_dataset inventoryで説明されているデータセット(2)の名前', 
                                             default_val='label_name')
     manifest_genenerator.add_ait_parameters(name='dataset_channel',
                                           type_='int',
                                           default_val='1',
-                                          description='input_dataset inventoryで説明されているデータセット(1)入力データセットのチャネル数(グレースケール画像の場合1、RGB画像の場合3)')
+                                          description='画像データを用いる場合の、input_dataset inventoryで説明されているデータセット(1)入力データセットのチャネル数(グレースケール画像の場合1、RGB画像の場合3)')
     manifest_genenerator.add_ait_parameters(name='delta_lower',
                                             type_='float',
                                             description='敵対的摂動δの範囲の下限.敵対的摂動δの範囲の上限よりも小さくする.',
@@ -217,11 +230,11 @@ if not is_ait_launch:
     manifest_genenerator.add_ait_measures(name='Adversarial_Robustness',
                                           type_='float',
                                           structure='sequence',
-                                          description='敵対的摂動δの値を増加させたとき、各クラスごとの予測確率の差が許容範囲内もしくは予測が一致する最大のδの値を相対化した値.値が大きいほど頑強である.')
+                                          description='敵対的摂動δの値を増加させたとき、（各クラスごとの）予測確率の差が許容範囲内もしくは予測が一致する最大のδの値を相対化した値.値が大きいほど頑強である.')
     #### Resources
-    manifest_genenerator.add_ait_resources(name='Violation_Rate_Transition_Plot',
+    manifest_genenerator.add_ait_resources(name='Robustness_Variation_Plot',
                                          type_='picture', 
-                                         description='敵対的摂動δの値を増加させたとき、各クラスごとのモデルの違反率（予測確率の差が許容範囲外もしくは予測が一致していない割合）の推移のプロット')
+                                         description='敵対的摂動δの値を増加させたとき、（各クラスごとの）モデルの頑強性（予測確率の差が許容範囲外もしくは予測が一致していない割合）の推移のプロット')
     #### Downloads
     manifest_genenerator.add_ait_downloads(name='Log', 
                                            description='AIT実行ログ')
@@ -232,19 +245,33 @@ if not is_ait_launch:
 
 # [required]
 
-# In[9]:
+# In[ ]:
 
 
 if not is_ait_launch:
     from ait_sdk.common.files.ait_input_generator import AITInputGenerator
     input_generator = AITInputGenerator(manifest_path)
+    """
+    # imageデータを使用する場合
     input_generator.add_ait_inventories(name='input_dataset',
                                         value='mnist_data/aug_test.h5')
     input_generator.add_ait_inventories(name='trained_model',
                                         value='models/LeNet5_model.pth')
+    input_generator.set_ait_params("data_type", "image")
     input_generator.set_ait_params("image_dataset_name", "test_image")
     input_generator.set_ait_params("label_dataset_name", "test_label")
     input_generator.set_ait_params("delta_upper", "2")
+    """
+    # tableデータを使用する場合
+    input_generator.add_ait_inventories(name='input_dataset',
+                                        value='california_housing_prices/test_housing.csv')
+    input_generator.add_ait_inventories(name='trained_model',
+                                        value='models/best_model.pth')
+    input_generator.set_ait_params("data_type", "table")
+    input_generator.set_ait_params("delta_upper", "1")
+    input_generator.set_ait_params("delta_increment", "0.05")
+    input_generator.set_ait_params("epsilon", "1")
+    
     input_generator.write()
 
 
@@ -252,7 +279,7 @@ if not is_ait_launch:
 
 # [uneditable]
 
-# In[10]:
+# In[ ]:
 
 
 logger = get_logger()
@@ -282,7 +309,7 @@ ait_manifest.read_json(path_helper.get_manifest_file_path())
 
 # [required]
 
-# In[11]:
+# In[ ]:
 
 
 @log(logger)
@@ -306,7 +333,7 @@ def load_h5_data(h5_filepath,image_dataset_name,label_dataset_name, batch_size=6
     return images ,labels
 
 
-# In[12]:
+# In[ ]:
 
 
 @log(logger)
@@ -324,7 +351,7 @@ def images_shape(images,channels):
     return images
 
 
-# In[13]:
+# In[ ]:
 
 
 @log(logger)
@@ -414,7 +441,7 @@ def calcurate_robustness(classifier,images,labels,channels,epsilon,delta_lower,d
     return class_robustness,violation_rate_list
 
 
-# In[14]:
+# In[ ]:
 
 
 @log(logger)
@@ -439,11 +466,9 @@ def print_plot(deltas,class_violation_rate_list,cls, file_path: str=None):
     plt.show()
     
     return file_path
-    
-    
 
 
-# In[15]:
+# In[ ]:
 
 
 @log(logger)
@@ -461,7 +486,116 @@ def Robustness_list(class_robustness,classifier):
     return np.array(Adversarial_Robsutness_list)
 
 
-# In[16]:
+# In[ ]:
+
+
+@log(logger)
+def empirical_robustness(features_tensor, labels_tensor, deltas, model, regressor, norm):
+    """
+    Empirical Robustnessを計算する関数。
+
+    Parameters:
+    features_tensor (torch.Tensor): 特徴量
+    labels_tensor (torch.Tensor): ラベル（正解値）
+    deltas (array-like): 摂動の範囲（delta）
+    model (torch.nn.Module): 訓練済みモデル
+    regressor (object): 回帰モデル（ARTなどで使用）
+    norm (int): 使用するノルム（例えば2ノルム）
+
+    Returns:
+    tuple: それぞれのdeltaに対応するrobustnessとepsの値
+    """
+    robustness_values = []
+    eps_values = []
+
+    # 攻撃前の予測値を最初に計算しておく
+    adv_x_no_attack = features_tensor.numpy()  # 攻撃なしの特徴量
+    adv_labels_no_attack = model(torch.tensor(adv_x_no_attack, dtype=torch.float32))  # 攻撃なしでの予測値
+
+    # それぞれのdeltaに対するEmpirical Robustnessを計算
+    for delta in deltas:
+        # FastGradientMethodの設定
+        attack = FastGradientMethod(
+            estimator=regressor,  # 回帰モデル
+            eps=delta,  # 現在の摂動の大きさ
+            norm=norm,  # 指定されたノルム
+        )
+        # 攻撃を加える
+        adv_x = attack.generate(x=features_tensor.numpy())  # features_tensor を numpy 配列に変換
+
+        # 攻撃後の予測値を計算
+        adv_labels = model(torch.tensor(adv_x, dtype=torch.float32))
+
+        # 攻撃なしの予測値と攻撃後の予測値の差異を計算（Empirical Robustness）
+        robustness = np.mean(np.abs(adv_labels.detach().numpy() - adv_labels_no_attack.detach().numpy()))
+        
+        # 結果をリストに追加
+        robustness_values.append(robustness)
+        eps_values.append(delta)
+
+        print(f"Empirical Robustness for eps={delta:.2f}: {robustness:.2f}")
+
+    return robustness_values, eps_values
+
+
+# In[ ]:
+
+
+@log(logger)
+@resources(ait_output, path_helper, 'Violation_Rate_Transition_Plot')
+def plot_robustness(eps_values, robustness_values, file_path: str=None):
+    """
+    Empirical Robustnessをプロットする関数。
+
+    Parameters:
+    eps_values (list): 各摂動（delta）の値
+    robustness_values (list): 各摂動に対するEmpirical Robustnessの値
+    """
+    import matplotlib.pyplot as plt
+    
+    plt.figure(figsize=(8, 6))
+    plt.plot(eps_values, robustness_values, marker='o', linestyle='-', color='b')
+    file_name = "Empirical_Robustness_Plot.png"
+    file_path = file_path+file_name
+    plt.xlabel('Eps', fontsize=12)
+    plt.ylabel('Empirical Robustness', fontsize=12)
+    plt.title('Empirical Robustness vs. Eps', fontsize=14)
+    plt.grid(True)
+    plt.savefig(file_path)
+    plt.show()
+
+
+# In[ ]:
+
+
+@log(logger)
+@measures(ait_output, 'Adversarial_Robustness', is_many=True)
+def find_max_eps_within_robustness(eps_values, robustness_values, epsilon):
+    """
+    Empirical Robustnessがepsilonを超えない最大のepsを探す関数。
+    
+    Parameters:
+    eps_values (list): 各摂動（delta）の値
+    robustness_values (list): 各摂動に対するEmpirical Robustnessの値
+    epsilon (float): 許容される最大のEmpirical Robustness
+    
+    Returns:
+    list: robustなeps（許容範囲内最大eps）を格納したリスト
+    """
+    max_eps = None
+    max_eps_list = []
+    for eps, robustness in zip(eps_values, robustness_values):
+        if robustness <= epsilon:
+            max_eps = eps
+    
+    # 結果を表示
+    print(f"許容範囲内最大（Empirical Robustness:{epsilon}）のepsは {max_eps:.2f} です")
+    max_eps_list.append(max_eps)
+        
+    return np.array(max_eps_list)
+
+
+# In[ ]:
 
 
 @log(logger)
@@ -474,13 +608,14 @@ def move_log(file_path: str=None) -> str:
 
 # [required]
 
-# In[17]:
+# In[ ]:
 
 
 @log(logger)
 @ait_main(ait_output, path_helper, is_ait_launch)
+
 def main() -> None:
-    
+
     #モデルの読み込み
     trained_model = ait_input.get_inventory_path('trained_model')
     try:
@@ -488,42 +623,7 @@ def main() -> None:
     except Exception as e:
         print(e)
     model.eval()
-
-    #データセットの読み込み
-    h5_filepath = ait_input.get_inventory_path('input_dataset')
-    image_dataset_name = ait_input.get_method_param_value('image_dataset_name')
-    label_dataset_name = ait_input.get_method_param_value('label_dataset_name')
-    images ,labels =load_h5_data(h5_filepath,image_dataset_name,label_dataset_name)
-    max_value = np.max(images)
-    min_value = np.min(images)
-    #チャネル数の読み込み
-    channels = ait_input.get_method_param_value('dataset_channel')
     
-    #データセットの調整
-    images = images_shape(images,channels)
-    
-    #画像データの形状とラベル数の読み込み
-    input_shape = images.shape[1:]
-    num_class = len(np.unique(labels))
-    
-    #損失関数の設定
-    if num_class > 2:
-        loss_fn = torch.nn.CrossEntropyLoss()
-    elif num_class == 2:
-        loss_fn = torch.nn.BCEWithLogitsLoss()
-    else:
-        raise ValueError("The number of classes is not read")
-
-    #PyTorchClassifierにラップ
-    classifier = PyTorchClassifier(
-        model = model,
-        clip_values = (min_value,max_value),
-        input_shape = input_shape,
-        nb_classes = num_class,
-        loss= loss_fn,
-        optimizer = None
-        )
-
     #許容範囲の設定
     epsilon=ait_input.get_method_param_value('epsilon')
     #敵対的摂動δの範囲の設定
@@ -545,28 +645,91 @@ def main() -> None:
         norm = np.inf
     else:
         raise ValueError("norm not found")
+            
+    data_type = ait_input.get_method_param_value('data_type')    
+    if data_type == 'image':
 
-    #各クラスごとの評価値と違反率を計算
-    class_robustness, violation_rate_list = calcurate_robustness(classifier,images,labels,channels,epsilon,delta_lower,delta_upper,delta_increment,norm)
-    #各クラスごとのモデルのロバストネスの表示
-    for cls, robustness in class_robustness.items():
-        if robustness is not None:
-            print(f"class{cls}, Adversarial Robustness:{robustness:.2f}")
-        else:
-            print(f"class{cls}, Adversarial Robustness:0")
-    #敵対的摂動δを使ってデータを生成した回数
-    num_step = len(deltas)
-    #Adversarial Robustnessの配列の生成
-    Robustness_list(class_robustness,classifier)
-    #違反率のリストからクラスごとの違反率を取得し、プロットする
-    for cls in range(classifier.nb_classes):
-        step=0
-        class_violation_rate_list=[]
-        for step in range(num_step):
-            class_violation_rate_list.append(violation_rate_list[step*classifier.nb_classes + cls])
-        print_plot(deltas,class_violation_rate_list,cls)
-
+        #データセットの読み込み
+        h5_filepath = ait_input.get_inventory_path('input_dataset')
+        image_dataset_name = ait_input.get_method_param_value('image_dataset_name')
+        label_dataset_name = ait_input.get_method_param_value('label_dataset_name')
+        images ,labels =load_h5_data(h5_filepath,image_dataset_name,label_dataset_name)
+        max_value = np.max(images)
+        min_value = np.min(images)
+        #チャネル数の読み込み
+        channels = ait_input.get_method_param_value('dataset_channel')
     
+        #データセットの調整
+        images = images_shape(images,channels)
+    
+        #画像データの形状とラベル数の読み込み
+        input_shape = images.shape[1:]
+        num_class = len(np.unique(labels))
+    
+        #損失関数の設定
+        if num_class > 2:
+            loss_fn = torch.nn.CrossEntropyLoss()
+        elif num_class == 2:
+            loss_fn = torch.nn.BCEWithLogitsLoss()
+        else:
+            raise ValueError("The number of classes is not read")
+
+        #PyTorchClassifierにラップ
+        classifier = PyTorchClassifier(
+            model = model,
+            clip_values = (min_value,max_value),
+            input_shape = input_shape,
+            nb_classes = num_class,
+            loss= loss_fn,
+            optimizer = None
+            )
+
+        #各クラスごとの評価値と違反率を計算
+        class_robustness, violation_rate_list = calcurate_robustness(classifier,images,labels,channels,epsilon,delta_lower,delta_upper,delta_increment,norm)
+        #各クラスごとのモデルのロバストネスの表示
+        for cls, robustness in class_robustness.items():
+            if robustness is not None:
+                print(f"class{cls}, Adversarial Robustness:{robustness:.2f}")
+            else:
+                print(f"class{cls}, Adversarial Robustness:0")
+        #敵対的摂動δを使ってデータを生成した回数
+        num_step = len(deltas)
+        #Adversarial Robustnessの配列の生成
+        Robustness_list(class_robustness,classifier)
+        #違反率のリストからクラスごとの違反率を取得し、プロットする
+        for cls in range(classifier.nb_classes):
+            step=0
+            class_violation_rate_list=[]
+            for step in range(num_step):
+                class_violation_rate_list.append(violation_rate_list[step*classifier.nb_classes + cls])
+            print_plot(deltas,class_violation_rate_list,cls)
+            
+    else:
+        # データセットの読み込み・前処理
+        csv_filepath = ait_input.get_inventory_path('input_dataset')
+        dataset = pd.read_csv(csv_filepath)
+
+        # 特徴量（データセットの最後の列をラベルとする）
+        features = dataset.iloc[:, :-1].values
+        labels = dataset.iloc[:, -1].values
+        # 特徴量とラベルをPyTorchのTensorに変換
+        features_tensor = torch.tensor(features, dtype=torch.float32)
+        labels_tensor = torch.tensor(labels, dtype=torch.float32)
+        # PyTorch Regressorのラップ
+        loss_fn = nn.MSELoss()  # 回帰用損失関数
+        input_shape = features_tensor.shape[1:]  # 特徴量の数（入力の形状）
+
+        regressor = PyTorchRegressor(model=model, loss=loss_fn, input_shape=input_shape)
+        
+        # Empirical Robustnessの計算
+        robustness_values, eps_values = empirical_robustness(features_tensor, labels_tensor, deltas, model, regressor, norm)
+            
+        # プロット
+        plot_robustness(eps_values, robustness_values)
+        
+        # max_epsをリストに格納
+        max_eps_list = find_max_eps_within_robustness(eps_values, robustness_values, epsilon)
+
     move_log()
     
 
