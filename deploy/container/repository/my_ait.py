@@ -38,7 +38,7 @@
 
 # [uneditable]
 
-# In[ ]:
+# In[1]:
 
 
 # Determine whether to start AIT or jupyter by startup argument
@@ -99,7 +99,7 @@ if not is_ait_launch:
 
 # #### #3-3 [uneditable]
 
-# In[ ]:
+# In[5]:
 
 
 if not is_ait_launch:
@@ -113,7 +113,7 @@ if not is_ait_launch:
 
 # #### #4-1 [required]
 
-# In[ ]:
+# In[6]:
 
 
 # import if you need modules cell
@@ -122,7 +122,6 @@ from art.attacks.evasion import SquareAttack
 from art.attacks.evasion import FastGradientMethod
 from art.estimators.classification import PyTorchClassifier
 from art.estimators.regression import PyTorchRegressor
-from art.metrics import empirical_robustness
 import pandas as pd
 import matplotlib.pyplot as plt
 import torch
@@ -136,7 +135,7 @@ import math
 
 # #### #4-2 [uneditable]
 
-# In[ ]:
+# In[7]:
 
 
 # must use modules
@@ -155,7 +154,7 @@ from ait_sdk.develop.annotation import measures, resources, downloads, ait_main 
 
 # [required]
 
-# In[ ]:
+# In[8]:
 
 
 if not is_ait_launch:
@@ -218,7 +217,7 @@ if not is_ait_launch:
                                             max_value='1')
     manifest_genenerator.add_ait_parameters(name='norm',
                                             type_='str',
-                                            description='制約に使用するノルム.1の場合L1ノルム、2の場合L2ノルム、infの場合L∞ノルムを使用する',
+                                            description='制約に使用するノルムは次の３パターン.1の場合L1ノルム、2の場合L2ノルム、infの場合L∞ノルムを使用する',
                                             default_val='2')                                         
     manifest_genenerator.add_ait_parameters(name='epsilon',
                                             type_='float',
@@ -232,9 +231,12 @@ if not is_ait_launch:
                                           structure='sequence',
                                           description='敵対的摂動δの値を増加させたとき、（各クラスごとの）予測確率の差が許容範囲内もしくは予測が一致する最大のδの値を相対化した値.値が大きいほど頑強である.')
     #### Resources
+    manifest_genenerator.add_ait_resources(name='Violation_Rate_Transition_Plot',
+                                         type_='picture', 
+                                         description='敵対的摂動δの値を増加させたとき、各クラスごとのモデルの違反率（予測確率の差が許容範囲外もしくは予測が一致していない割合）の推移のプロット')
     manifest_genenerator.add_ait_resources(name='Robustness_Variation_Plot',
                                          type_='picture', 
-                                         description='敵対的摂動δの値を増加させたとき、（各クラスごとの）モデルの頑強性（予測確率の差が許容範囲外もしくは予測が一致していない割合）の推移のプロット')
+                                         description='敵対的摂動δの値を増加させたとき、モデルの頑強性の推移のプロット')
     #### Downloads
     manifest_genenerator.add_ait_downloads(name='Log', 
                                            description='AIT実行ログ')
@@ -245,7 +247,7 @@ if not is_ait_launch:
 
 # [required]
 
-# In[ ]:
+# In[9]:
 
 
 if not is_ait_launch:
@@ -279,7 +281,7 @@ if not is_ait_launch:
 
 # [uneditable]
 
-# In[ ]:
+# In[10]:
 
 
 logger = get_logger()
@@ -309,7 +311,7 @@ ait_manifest.read_json(path_helper.get_manifest_file_path())
 
 # [required]
 
-# In[ ]:
+# In[11]:
 
 
 @log(logger)
@@ -333,7 +335,7 @@ def load_h5_data(h5_filepath,image_dataset_name,label_dataset_name, batch_size=6
     return images ,labels
 
 
-# In[ ]:
+# In[12]:
 
 
 @log(logger)
@@ -351,7 +353,7 @@ def images_shape(images,channels):
     return images
 
 
-# In[ ]:
+# In[13]:
 
 
 @log(logger)
@@ -441,7 +443,7 @@ def calcurate_robustness(classifier,images,labels,channels,epsilon,delta_lower,d
     return class_robustness,violation_rate_list
 
 
-# In[ ]:
+# In[14]:
 
 
 @log(logger)
@@ -468,7 +470,7 @@ def print_plot(deltas,class_violation_rate_list,cls, file_path: str=None):
     return file_path
 
 
-# In[ ]:
+# In[15]:
 
 
 @log(logger)
@@ -486,11 +488,11 @@ def Robustness_list(class_robustness,classifier):
     return np.array(Adversarial_Robsutness_list)
 
 
-# In[ ]:
+# In[16]:
 
 
 @log(logger)
-def empirical_robustness(features_tensor, labels_tensor, deltas, model, regressor, norm):
+def calculate_empirical_robustness(features_tensor, labels_tensor, deltas, model, regressor, norm):
     """
     Empirical Robustnessを計算する関数。
 
@@ -533,16 +535,16 @@ def empirical_robustness(features_tensor, labels_tensor, deltas, model, regresso
         robustness_values.append(robustness)
         eps_values.append(delta)
 
-        print(f"Empirical Robustness for eps={delta:.2f}: {robustness:.2f}")
+        print(f"Empirical Robustness for eps={delta:.2f}: {robustness_values[-1]:.2f}")
 
     return robustness_values, eps_values
 
 
-# In[ ]:
+# In[17]:
 
 
 @log(logger)
-@resources(ait_output, path_helper, 'Violation_Rate_Transition_Plot')
+@resources(ait_output, path_helper, 'Robustness_Variation_Plot')
 def plot_robustness(eps_values, robustness_values, file_path: str=None):
     """
     Empirical Robustnessをプロットする関数。
@@ -565,7 +567,7 @@ def plot_robustness(eps_values, robustness_values, file_path: str=None):
     plt.show()
 
 
-# In[ ]:
+# In[18]:
 
 
 @log(logger)
@@ -595,7 +597,7 @@ def find_max_eps_within_robustness(eps_values, robustness_values, epsilon):
     return np.array(max_eps_list)
 
 
-# In[ ]:
+# In[19]:
 
 
 @log(logger)
@@ -608,14 +610,14 @@ def move_log(file_path: str=None) -> str:
 
 # [required]
 
-# In[ ]:
+# In[20]:
 
 
 @log(logger)
 @ait_main(ait_output, path_helper, is_ait_launch)
 
 def main() -> None:
-
+    
     #モデルの読み込み
     trained_model = ait_input.get_inventory_path('trained_model')
     try:
@@ -722,7 +724,7 @@ def main() -> None:
         regressor = PyTorchRegressor(model=model, loss=loss_fn, input_shape=input_shape)
         
         # Empirical Robustnessの計算
-        robustness_values, eps_values = empirical_robustness(features_tensor, labels_tensor, deltas, model, regressor, norm)
+        robustness_values, eps_values = calculate_empirical_robustness(features_tensor, labels_tensor, deltas, model, regressor, norm)
             
         # プロット
         plot_robustness(eps_values, robustness_values)
@@ -738,7 +740,7 @@ def main() -> None:
 
 # [uneditable]
 
-# In[ ]:
+# In[21]:
 
 
 if __name__ == '__main__':
@@ -749,7 +751,7 @@ if __name__ == '__main__':
 
 # [required]
 
-# In[ ]:
+# In[22]:
 
 
 ## sample ##
@@ -761,7 +763,7 @@ ait_creation_year='2024'
 
 # [uneditable] 
 
-# In[ ]:
+# In[23]:
 
 
 if not is_ait_launch:

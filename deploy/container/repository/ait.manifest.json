@@ -87,7 +87,7 @@
     {
       "name": "norm",
       "type": "str",
-      "description": "制約に使用するノルム.1の場合L1ノルム、2の場合L2ノルム、infの場合L∞ノルムを使用する",
+      "description": "制約に使用するノルムは次の３パターン.1の場合L1ノルム、2の場合L2ノルム、infの場合L∞ノルムを使用する",
       "default_val": "2"
     },
     {
@@ -110,9 +110,14 @@
     ],
     "resources": [
       {
+        "name": "Violation_Rate_Transition_Plot",
+        "type": "picture",
+        "description": "敵対的摂動δの値を増加させたとき、各クラスごとのモデルの違反率（予測確率の差が許容範囲外もしくは予測が一致していない割合）の推移のプロット"
+      },
+      {
         "name": "Robustness_Variation_Plot",
         "type": "picture",
-        "description": "敵対的摂動δの値を増加させたとき、（各クラスごとの）モデルの頑強性（予測確率の差が許容範囲外もしくは予測が一致していない割合）の推移のプロット"
+        "description": "敵対的摂動δの値を増加させたとき、モデルの頑強性の推移のプロット"
       }
     ]
   },
