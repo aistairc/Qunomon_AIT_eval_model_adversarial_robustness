@@ -38,7 +38,7 @@
 
 # [uneditable]
 
-# In[1]:
+# In[ ]:
 
 
 # Determine whether to start AIT or jupyter by startup argument
@@ -99,7 +99,7 @@ if not is_ait_launch:
 
 # #### #3-3 [uneditable]
 
-# In[5]:
+# In[ ]:
 
 
 if not is_ait_launch:
@@ -113,7 +113,7 @@ if not is_ait_launch:
 
 # #### #4-1 [required]
 
-# In[6]:
+# In[ ]:
 
 
 # import if you need modules cell
@@ -135,7 +135,7 @@ import math
 
 # #### #4-2 [uneditable]
 
-# In[7]:
+# In[ ]:
 
 
 # must use modules
@@ -154,7 +154,7 @@ from ait_sdk.develop.annotation import measures, resources, downloads, ait_main 
 
 # [required]
 
-# In[8]:
+# In[ ]:
 
 
 if not is_ait_launch:
@@ -247,7 +247,7 @@ if not is_ait_launch:
 
 # [required]
 
-# In[9]:
+# In[ ]:
 
 
 if not is_ait_launch:
@@ -281,7 +281,7 @@ if not is_ait_launch:
 
 # [uneditable]
 
-# In[10]:
+# In[ ]:
 
 
 logger = get_logger()
@@ -311,7 +311,7 @@ ait_manifest.read_json(path_helper.get_manifest_file_path())
 
 # [required]
 
-# In[11]:
+# In[ ]:
 
 
 @log(logger)
@@ -335,7 +335,7 @@ def load_h5_data(h5_filepath,image_dataset_name,label_dataset_name, batch_size=6
     return images ,labels
 
 
-# In[12]:
+# In[ ]:
 
 
 @log(logger)
@@ -353,7 +353,7 @@ def images_shape(images,channels):
     return images
 
 
-# In[13]:
+# In[ ]:
 
 
 @log(logger)
@@ -443,7 +443,7 @@ def calcurate_robustness(classifier,images,labels,channels,epsilon,delta_lower,d
     return class_robustness,violation_rate_list
 
 
-# In[14]:
+# In[ ]:
 
 
 @log(logger)
@@ -470,7 +470,7 @@ def print_plot(deltas,class_violation_rate_list,cls, file_path: str=None):
     return file_path
 
 
-# In[15]:
+# In[ ]:
 
 
 @log(logger)
@@ -488,49 +488,51 @@ def Robustness_list(class_robustness,classifier):
     return np.array(Adversarial_Robsutness_list)
 
 
-# In[16]:
+# In[ ]:
 
 
 @log(logger)
 def calculate_empirical_robustness(features_tensor, labels_tensor, deltas, model, regressor, norm):
     """
-    Empirical Robustnessを計算する関数。
+    Empirical Robustnessを計算する関数（回帰モデル用）。
 
     Parameters:
     features_tensor (torch.Tensor): 特徴量
     labels_tensor (torch.Tensor): ラベル（正解値）
     deltas (array-like): 摂動の範囲（delta）
-    model (torch.nn.Module): 訓練済みモデル
+    model (torch.nn.Module): 訓練済み回帰モデル
     regressor (object): 回帰モデル（ARTなどで使用）
-    norm (int): 使用するノルム（例えば2ノルム）
-
-    Returns:
-    tuple: それぞれのdeltaに対応するrobustnessとepsの値
+    norm ("1"または"2"の場合：int."inf"の場合：float): 使用するノルム
     """
     robustness_values = []
     eps_values = []
 
-    # 攻撃前の予測値を最初に計算しておく
-    adv_x_no_attack = features_tensor.numpy()  # 攻撃なしの特徴量
-    adv_labels_no_attack = model(torch.tensor(adv_x_no_attack, dtype=torch.float32))  # 攻撃なしでの予測値
-
     # それぞれのdeltaに対するEmpirical Robustnessを計算
     for delta in deltas:
-        # FastGradientMethodの設定
+        # FastGradientMethodの設定（回帰モデルに対する設定）
         attack = FastGradientMethod(
             estimator=regressor,  # 回帰モデル
             eps=delta,  # 現在の摂動の大きさ
             norm=norm,  # 指定されたノルム
         )
-        # 攻撃を加える
-        adv_x = attack.generate(x=features_tensor.numpy())  # features_tensor を numpy 配列に変換
-
-        # 攻撃後の予測値を計算
-        adv_labels = model(torch.tensor(adv_x, dtype=torch.float32))
-
-        # 攻撃なしの予測値と攻撃後の予測値の差異を計算（Empirical Robustness）
-        robustness = np.mean(np.abs(adv_labels.detach().numpy() - adv_labels_no_attack.detach().numpy()))
         
+        # 攻撃を加える（features_tensor を numpy 配列に変換）
+        adv_x = attack.generate(x=features_tensor.numpy())  # 攻撃後のデータ
+
+        # 攻撃前後の予測値を取得
+        predicted_before = model(features_tensor).detach().numpy()  # 攻撃前の予測値
+        predicted_after = model(torch.tensor(adv_x)).detach().numpy()  # 攻撃後の予測値
+
+        # 攻撃が成功したかどうかの判定（回帰モデルの予測値の変化）
+        perturbation = np.linalg.norm(predicted_after - predicted_before, norm)  # 予測値の変化量
+        norm_x = np.linalg.norm(predicted_before, norm)  # 元の予測値のノルム
+
+        # ER計算（摂動量を基に計算）
+        if norm_x > 0:  # 元の予測値がゼロでない場合
+            robustness = perturbation / norm_x
+        else:
+            robustness = 0  # 予測値がゼロの場合はERを0に設定
+
         # 結果をリストに追加
         robustness_values.append(robustness)
         eps_values.append(delta)
@@ -540,7 +542,7 @@ def calculate_empirical_robustness(features_tensor, labels_tensor, deltas, model
     return robustness_values, eps_values
 
 
-# In[17]:
+# In[ ]:
 
 
 @log(logger)
@@ -567,7 +569,7 @@ def plot_robustness(eps_values, robustness_values, file_path: str=None):
     plt.show()
 
 
-# In[18]:
+# In[ ]:
 
 
 @log(logger)
@@ -597,7 +599,7 @@ def find_max_eps_within_robustness(eps_values, robustness_values, epsilon):
     return np.array(max_eps_list)
 
 
-# In[19]:
+# In[ ]:
 
 
 @log(logger)
@@ -610,7 +612,7 @@ def move_log(file_path: str=None) -> str:
 
 # [required]
 
-# In[20]:
+# In[ ]:
 
 
 @log(logger)
@@ -740,7 +742,7 @@ def main() -> None:
 
 # [uneditable]
 
-# In[21]:
+# In[ ]:
 
 
 if __name__ == '__main__':
@@ -751,7 +753,7 @@ if __name__ == '__main__':
 
 # [required]
 
-# In[22]:
+# In[ ]:
 
 
 ## sample ##
@@ -763,7 +765,7 @@ ait_creation_year='2024'
 
 # [uneditable] 
 
-# In[23]:
+# In[ ]:
 
 
 if not is_ait_launch:
