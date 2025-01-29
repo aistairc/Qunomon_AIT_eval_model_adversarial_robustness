@@ -1,13 +1,15 @@
 {
-  "name": "eval_model_image_adversarial_robustness",
-  "description": "分類モデルに対して、各クラスごとの入力画像データに摂動を加え敵対的データを距離尺度の制約下で生成し、摂動に対する強度と予測性能の変化を評価して頑強性を測定する。攻撃手法はSquare Attackを使用する。",
-  "source_repository": "https://github.com/aistairc/Qunomon_AIT_eval_model_image_adversarial_robustness",
-  "version": "1.1",
+  "name": "eval_model_adversarial_robustness",
+  "description": "深層学習モデルに対して、入力データに摂動を加え敵対的データを距離尺度の制約下で生成し、摂動に対する強度と予測性能の変化を評価して頑強性を測定する。分類モデルの場合、各クラスごとの入力画像データに摂動を加え敵対的データを生成する。攻撃手法はSquare Attackを使用する。また、回帰モデルの場合、入力テーブルデータに摂動を加え敵対的データを生成する。攻撃手法はFastGradientMethodを使用する。",
+  "source_repository": "https://github.com/aistairc/Qunomon_AIT_eval_model_adversarial_robustness",
+  "version": "1.2",
   "quality": "https://ait-hub.pj.aist.go.jp/ait-hub/api/0.0.1/qualityDimensions/機械学習品質マネジメントガイドライン第三版/C-2機械学習モデルの安定性",
   "keywords": [
     "Robustness",
     "Adversarial",
-    "image"
+    "Empirical",
+    "image",
+    "table"
   ],
   "references": [],
   "licenses": [
@@ -17,10 +19,10 @@
     {
       "name": "input_dataset",
       "type": "dataset",
-      "description": "HDF5形式のデータセット。内部は2つのHDF5ファイルを用意する(ファイル名は任意)\n(1)モデルに入力される、[-1,1]に正規化されている多次元配列を含むデータセット\n(2)データの各サンプルの正解ラベル（クラスのインデックス値）を含むデータセット\n\nファイル構造:\n sample.h5\n ├(1)入力データセット\n └(2)ラベルデータセット\n",
+      "description": "分類モデルの場合、HDF5形式のデータセット。内部は2つのHDF5ファイルを用意する(ファイル名は任意)\n(1)モデルに入力される、[-1,1]に正規化されている多次元配列を含むデータセット\n(2)データの各サンプルの正解ラベル（クラスのインデックス値）を含むデータセット\n\nファイル構造:\n sample.h5\n ├(1)入力データセット\n └(2)ラベルデータセット\n 回帰モデルの場合、CSV形式のデータセット。データセットの最後の列を正解ラベルとし、それ以外を特徴量とする。\n",
       "requirement": {
         "format": [
-          "h5"
+          "*"
         ]
       }
     },
@@ -37,21 +39,27 @@
   ],
   "parameters": [
     {
+      "name": "data_type",
+      "type": "str",
+      "description": "使用するデータセットの種類.[image]または[table]",
+      "default_val": "image"
+    },
+    {
       "name": "image_dataset_name",
       "type": "str",
-      "description": "input_dataset inventoryで説明されているデータセット(1)の名前",
+      "description": "画像データを用いる場合の、input_dataset inventoryで説明されているデータセット(1)の名前",
       "default_val": "image_name"
     },
     {
       "name": "label_dataset_name",
       "type": "str",
-      "description": "input_dataset inventoryで説明されているデータセット(2)の名前",
+      "description": "画像データを用いる場合の、input_dataset inventoryで説明されているデータセット(2)の名前",
       "default_val": "label_name"
     },
     {
       "name": "dataset_channel",
       "type": "int",
-      "description": "input_dataset inventoryで説明されているデータセット(1)入力データセットのチャネル数(グレースケール画像の場合1、RGB画像の場合3)",
+      "description": "画像データを用いる場合の、input_dataset inventoryで説明されているデータセット(1)入力データセットのチャネル数(グレースケール画像の場合1、RGB画像の場合3)",
       "default_val": "1"
     },
     {
@@ -79,7 +87,7 @@
     {
       "name": "norm",
       "type": "str",
-      "description": "制約に使用するノルム.1の場合L1ノルム、2の場合L2ノルム、infの場合L∞ノルムを使用する",
+      "description": "制約に使用するノルムは次の３パターン.1の場合L1ノルム、2の場合L2ノルム、infの場合L∞ノルムを使用する",
       "default_val": "2"
     },
     {
@@ -96,7 +104,7 @@
       {
         "name": "Adversarial_Robustness",
         "type": "float",
-        "description": "敵対的摂動δの値を増加させたとき、各クラスごとの予測確率の差が許容範囲内もしくは予測が一致する最大のδの値を相対化した値.値が大きいほど頑強である.",
+        "description": "敵対的摂動δの値を増加させたとき、（各クラスごとの）予測確率の差が許容範囲内もしくは予測が一致する最大のδの値を相対化した値.値が大きいほど頑強である.",
         "structure": "sequence"
       }
     ],
@@ -105,6 +113,11 @@
         "name": "Violation_Rate_Transition_Plot",
         "type": "picture",
         "description": "敵対的摂動δの値を増加させたとき、各クラスごとのモデルの違反率（予測確率の差が許容範囲外もしくは予測が一致していない割合）の推移のプロット"
+      },
+      {
+        "name": "Robustness_Variation_Plot",
+        "type": "picture",
+        "description": "敵対的摂動δの値を増加させたとき、モデルの頑強性の推移のプロット"
       }
     ]
   },

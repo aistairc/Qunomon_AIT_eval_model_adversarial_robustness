@@ -1,6 +1,7 @@
-adversarial-robustness-toolbox==1.18.2
+adversarial-robustness-toolbox==1.19.0
 numpy==1.26.4
 h5py==3.12.1
 torch==2.5.1
-matplotlib==3.9.2
+matplotlib==3.9.4
+pandas==2.2.3
 ./ait_sdk-0.1.24-py3-none-any.whl
