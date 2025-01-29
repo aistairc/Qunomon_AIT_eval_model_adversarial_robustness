@@ -99,7 +99,7 @@ if not is_ait_launch:
 
 # #### #3-3 [uneditable]
 
-# In[5]:
+# In[ ]:
 
 
 if not is_ait_launch:
@@ -113,7 +113,7 @@ if not is_ait_launch:
 
 # #### #4-1 [required]
 
-# In[6]:
+# In[ ]:
 
 
 # import if you need modules cell
@@ -135,7 +135,7 @@ import math
 
 # #### #4-2 [uneditable]
 
-# In[7]:
+# In[ ]:
 
 
 # must use modules
@@ -154,7 +154,7 @@ from ait_sdk.develop.annotation import measures, resources, downloads, ait_main 
 
 # [required]
 
-# In[8]:
+# In[ ]:
 
 
 if not is_ait_launch:
@@ -247,7 +247,7 @@ if not is_ait_launch:
 
 # [required]
 
-# In[9]:
+# In[ ]:
 
 
 if not is_ait_launch:
@@ -281,7 +281,7 @@ if not is_ait_launch:
 
 # [uneditable]
 
-# In[10]:
+# In[ ]:
 
 
 logger = get_logger()
@@ -311,7 +311,7 @@ ait_manifest.read_json(path_helper.get_manifest_file_path())
 
 # [required]
 
-# In[11]:
+# In[ ]:
 
 
 @log(logger)
@@ -335,7 +335,7 @@ def load_h5_data(h5_filepath,image_dataset_name,label_dataset_name, batch_size=6
     return images ,labels
 
 
-# In[12]:
+# In[ ]:
 
 
 @log(logger)
@@ -353,7 +353,7 @@ def images_shape(images,channels):
     return images
 
 
-# In[13]:
+# In[ ]:
 
 
 @log(logger)
@@ -443,7 +443,7 @@ def calcurate_robustness(classifier,images,labels,channels,epsilon,delta_lower,d
     return class_robustness,violation_rate_list
 
 
-# In[14]:
+# In[ ]:
 
 
 @log(logger)
@@ -470,7 +470,7 @@ def print_plot(deltas,class_violation_rate_list,cls, file_path: str=None):
     return file_path
 
 
-# In[15]:
+# In[ ]:
 
 
 @log(logger)
@@ -488,7 +488,7 @@ def Robustness_list(class_robustness,classifier):
     return np.array(Adversarial_Robsutness_list)
 
 
-# In[16]:
+# In[ ]:
 
 
 @log(logger)
@@ -541,7 +541,7 @@ def calculate_empirical_robustness(features_tensor, deltas, model, regressor, no
     return robustness_values, eps_values
 
 
-# In[17]:
+# In[ ]:
 
 
 @log(logger)
@@ -554,8 +554,6 @@ def plot_robustness(eps_values, robustness_values, file_path: str=None):
     eps_values (list): 各摂動（delta）の値
     robustness_values (list): 各摂動に対するEmpirical Robustnessの値
     """
-    import matplotlib.pyplot as plt
-    
     plt.figure(figsize=(8, 6))
     plt.plot(eps_values, robustness_values, marker='o', linestyle='-', color='b')
     file_name = "Empirical_Robustness_Plot.png"
@@ -566,9 +564,11 @@ def plot_robustness(eps_values, robustness_values, file_path: str=None):
     plt.grid(True)
     plt.savefig(file_path)
     plt.show()
+    
+    return file_path
 
 
-# In[18]:
+# In[ ]:
 
 
 @log(logger)
@@ -598,7 +598,7 @@ def find_max_eps_within_robustness(eps_values, robustness_values, epsilon):
     return np.array(max_eps_list)
 
 
-# In[19]:
+# In[ ]:
 
 
 @log(logger)
@@ -611,7 +611,7 @@ def move_log(file_path: str=None) -> str:
 
 # [required]
 
-# In[20]:
+# In[ ]:
 
 
 @log(logger)
@@ -739,7 +739,7 @@ def main() -> None:
 
 # [uneditable]
 
-# In[21]:
+# In[ ]:
 
 
 if __name__ == '__main__':
@@ -750,7 +750,7 @@ if __name__ == '__main__':
 
 # [required]
 
-# In[22]:
+# In[ ]:
 
 
 ## sample ##
@@ -762,7 +762,7 @@ ait_creation_year='2024'
 
 # [uneditable] 
 
-# In[23]:
+# In[ ]:
 
 
 if not is_ait_launch:
