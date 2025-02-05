@@ -38,7 +38,7 @@
 
 # [uneditable]
 
-# In[ ]:
+# In[1]:
 
 
 # Determine whether to start AIT or jupyter by startup argument
@@ -117,7 +117,6 @@ if not is_ait_launch:
 
 
 # import if you need modules cell
-
 from art.attacks.evasion import SquareAttack
 from art.attacks.evasion import FastGradientMethod
 from art.estimators.classification import PyTorchClassifier
@@ -162,8 +161,8 @@ if not is_ait_launch:
     manifest_genenerator = AITManifestGenerator(current_dir)
     manifest_genenerator.set_ait_name('eval_model_adversarial_robustness')
     manifest_genenerator.set_ait_description('深層学習モデルに対して、入力データに摂動を加え敵対的データを距離尺度の制約下で生成し、摂動に対する強度と予測性能の変化を評価して頑強性を測定する。分類モデルの場合、各クラスごとの入力画像データに摂動を加え敵対的データを生成する。攻撃手法はSquare Attackを使用する。また、回帰モデルの場合、入力テーブルデータに摂動を加え敵対的データを生成する。攻撃手法はFastGradientMethodを使用する。')
-    manifest_genenerator.set_ait_source_repository('https://github.com/aistairc/Qunomon_AIT_eval_model_adversarial_robustness')
-    manifest_genenerator.set_ait_version('1.2')
+    manifest_genenerator.set_ait_source_repository('https://github.com/aistairc/Qunomon_AIT_eval_adversarial_robustness')
+    manifest_genenerator.set_ait_version('1.3')
     manifest_genenerator.add_ait_licenses('Apache License Version 2.0')
     manifest_genenerator.add_ait_keywords('Robustness')
     manifest_genenerator.add_ait_keywords('Adversarial')
@@ -221,10 +220,10 @@ if not is_ait_launch:
                                             default_val='2')                                         
     manifest_genenerator.add_ait_parameters(name='epsilon',
                                             type_='float',
-                                            description='各クラスのモデルの元のデータに対する予測確率と敵対的データに対する予測確率の差の許容範囲（0の場合、モデルの元のデータに対する予測と敵対的データに対する予測が一致しているかを判断する）',
+                                            description='(各クラスの)モデルの元のデータに対する予測確率と敵対的データに対する予測確率の差の許容範囲（0の場合、モデルの元のデータに対する予測と敵対的データに対する予測が一致しているかを判断する）',
                                             default_val='0.2',
-                                            min_value='0',
-                                            max_value='1')
+                                            min_value='0'
+                                            )
     #### Measures
     manifest_genenerator.add_ait_measures(name='Adversarial_Robustness',
                                           type_='float',
@@ -233,10 +232,7 @@ if not is_ait_launch:
     #### Resources
     manifest_genenerator.add_ait_resources(name='Violation_Rate_Transition_Plot',
                                          type_='picture', 
-                                         description='敵対的摂動δの値を増加させたとき、各クラスごとのモデルの違反率（予測確率の差が許容範囲外もしくは予測が一致していない割合）の推移のプロット')
-    manifest_genenerator.add_ait_resources(name='Robustness_Variation_Plot',
-                                         type_='picture', 
-                                         description='敵対的摂動δの値を増加させたとき、モデルの頑強性の推移のプロット')
+                                         description='敵対的摂動δの値を増加させたとき、（各クラスごとの）モデルの違反率（予測確率の差が許容範囲外もしくは予測が一致していない割合）の推移のプロット')
     #### Downloads
     manifest_genenerator.add_ait_downloads(name='Log', 
                                            description='AIT実行ログ')
@@ -272,7 +268,7 @@ if not is_ait_launch:
     input_generator.set_ait_params("data_type", "table")
     input_generator.set_ait_params("delta_upper", "1")
     input_generator.set_ait_params("delta_increment", "0.05")
-    input_generator.set_ait_params("epsilon", "1")
+    input_generator.set_ait_params("epsilon", "1.5")
     
     input_generator.write()
 
@@ -448,19 +444,27 @@ def calcurate_robustness(classifier,images,labels,channels,epsilon,delta_lower,d
 
 @log(logger)
 @resources(ait_output, path_helper, 'Violation_Rate_Transition_Plot')
-def print_plot(deltas,class_violation_rate_list,cls, file_path: str=None):
+def print_plot(deltas,violation_rate_list,cls=None, file_path: str=None):
     """
     プロットを表示する関数
     parameter:
         deltas:敵対的摂動δのリスト
-        class_violation_rate_list:クラスごとの違反率のリスト
+        violation_rate_list:違反率のリスト
         cls:クラスラベル（クラスのインデックス値）
     """
-    file_name = "class"+str(cls)+"_Violation_Rate_Transition_Plot.png"
-    file_path = file_path+file_name
+
     plt.figure(figsize=(8,6))
-    plt.plot(deltas,class_violation_rate_list,marker='o',linestyle='-',color='b')
-    plt.title(f"class{cls} :Violation Rate Transition")
+    plt.plot(deltas,violation_rate_list,marker='o',linestyle='-',color='b')
+    #分類モデルの処理
+    if cls != None:
+        file_name = "class"+str(cls)+"_Violation_Rate_Transition_Plot.png"
+        file_path = file_path+file_name
+        plt.title(f"class{cls} :Violation Rate Transition")
+    #回帰モデルの処理
+    else:
+        file_name = "Violation_Rate_Transition_Plot.png"
+        file_path = file_path+file_name
+        plt.title("Violation Rate Transition")
     plt.xlabel("delta")
     plt.ylabel("Violation Rate")
     plt.grid(True)
@@ -492,110 +496,84 @@ def Robustness_list(class_robustness,classifier):
 
 
 @log(logger)
-def calculate_empirical_robustness(features_tensor, deltas, model, regressor, norm):
+def calculate_robustness_for_regression(features_tensor, model, regressor,epsilon,delta_lower,delta_upper,delta_increment, norm):
     """
-    Empirical Robustnessを計算する関数（回帰モデル用）。
+    Adversarial Robustnessを計算する関数（回帰モデル用）。
 
     Parameters:
     features_tensor (torch.Tensor): 特徴量
-    deltas (array-like): 摂動の範囲（delta）
     model (torch.nn.Module): 訓練済み回帰モデル
     regressor (object): 回帰モデル（ARTなどで使用）
+    epsilon (float): 許容範囲
+    elta_lower (float): 摂動の範囲の上限（delta）
+    delta_upper (float): 摂動の範囲の下限（delta）
+    delta_increment (float): 摂動の増加量（delta）
     norm ("1"または"2"の場合：int."inf"の場合：float): 使用するノルム
     """
-    robustness_values = []
-    eps_values = []
-
+    violation_rate_list =[]
+    robustness = 0
+    #δの範囲の設定
+    deltas = np.arange(delta_lower,delta_upper+delta_increment,delta_increment)           
+            
     # それぞれのdeltaに対するEmpirical Robustnessを計算
     for delta in deltas:
-        # FastGradientMethodの設定（回帰モデルに対する設定）
-        attack = FastGradientMethod(
-            estimator=regressor,  # 回帰モデル
-            eps=delta,  # 現在の摂動の大きさ
-            norm=norm,  # 指定されたノルム
-        )
-        
-        # 攻撃を加える（features_tensor を numpy 配列に変換）
-        adv_x = attack.generate(x=features_tensor.numpy())  # 攻撃後のデータ
-
-        # 攻撃前後の予測値を取得
-        predicted_before = model(features_tensor).detach().numpy()  # 攻撃前の予測値
-        predicted_after = model(torch.tensor(adv_x)).detach().numpy()  # 攻撃後の予測値
-
-        # 攻撃が成功したかどうかの判定（回帰モデルの予測値の変化）
-        perturbation = np.linalg.norm(predicted_after - predicted_before, norm)  # 予測値の変化量
-        norm_x = np.linalg.norm(predicted_before, norm)  # 元の予測値のノルム
-
-        # ER計算（摂動量を基に計算）
-        if norm_x > 0:  # 元の予測値がゼロでない場合
-            robustness = perturbation / norm_x
+        if delta ==0:
+            #元のデータに対する予測確率
+            predicted_before = model(features_tensor).detach().numpy()
+            predicted_after = predicted_before
         else:
-            robustness = 0  # 予測値がゼロの場合はERを0に設定
+            # FastGradientMethodの設定（回帰モデルに対する設定）
+            attack = FastGradientMethod(
+                estimator=regressor,  # 回帰モデル
+                eps=delta,  # 現在の摂動の大きさ
+                norm=norm,  # 指定されたノルム
+            )
 
-        # 結果をリストに追加
-        robustness_values.append(robustness)
-        eps_values.append(delta)
+            # 攻撃を加える（features_tensor を numpy 配列に変換）
+            adv_x = attack.generate(x=features_tensor.numpy())  # 攻撃後のデータ
 
-        print(f"Empirical Robustness for eps={delta:.2f}: {robustness_values[-1]:.2f}")
+            # 攻撃前後の予測値を取得
+            # 攻撃前後の予測値を取得
+            predicted_before = model(features_tensor).detach().numpy()  # 攻撃前の予測値
+            predicted_after = model(torch.tensor(adv_x)).detach().numpy()  # 攻撃後の予測値
+        
+        #epsilon=0の時、予測値が一致しているかを判断
+        if epsilon == 0:
+            violations = predicted_before != predicted_after
+        #epsilon!=0のとき、予測値が許容範囲内かを判断
+        else:
+            # 攻撃が成功したかどうかの判定（回帰モデルの予測値の変化）
+            prob_diff = np.abs(predicted_before - predicted_after)  # 予測値の変化量
+            violations = np.any(prob_diff > epsilon,axis=1)
+        #違反率の保存
+        violation_rate = np.mean(violations)
+        violation_rate_list.append(violation_rate)
+        #違反率が0かつ、一回前のδで更新しているもしくはδの値が下限のとき、δを更新
+        if violation_rate == 0 and (math.isclose(robustness,delta-delta_increment) or delta == delta_lower):
+            robustness = delta
 
-    return robustness_values, eps_values
+    print(f"Adversarial Robustness : {robustness:.2f}")
 
-
-# In[ ]:
-
-
-@log(logger)
-@resources(ait_output, path_helper, 'Robustness_Variation_Plot')
-def plot_robustness(eps_values, robustness_values, file_path: str=None):
-    """
-    Empirical Robustnessをプロットする関数。
-
-    Parameters:
-    eps_values (list): 各摂動（delta）の値
-    robustness_values (list): 各摂動に対するEmpirical Robustnessの値
-    """
-    plt.figure(figsize=(8, 6))
-    plt.plot(eps_values, robustness_values, marker='o', linestyle='-', color='b')
-    file_name = "Empirical_Robustness_Plot.png"
-    file_path = file_path+file_name
-    plt.xlabel('Eps', fontsize=12)
-    plt.ylabel('Empirical Robustness', fontsize=12)
-    plt.title('Empirical Robustness vs. Eps', fontsize=14)
-    plt.grid(True)
-    plt.savefig(file_path)
-    plt.show()
-    
-    return file_path
+    return robustness ,violation_rate_list
 
 
 # In[ ]:
 
 
 @log(logger)
-@measures(ait_output, 'Adversarial_Robustness', is_many=True)
-def find_max_eps_within_robustness(eps_values, robustness_values, epsilon):
+@measures(ait_output, 'Adversarial_Robustness')
+def output_robustness_for_regression(robustness_value):
     """
-    Empirical Robustnessがepsilonを超えない最大のepsを探す関数。
+    回帰モデル用にmeasureのAdversarial_Robustnessを出力する関数。
     
     Parameters:
-    eps_values (list): 各摂動（delta）の値
-    robustness_values (list): 各摂動に対するEmpirical Robustnessの値
-    epsilon (float): 許容される最大のEmpirical Robustness
+    robustness_value (float): Adversarial Robustnessの値
     
     Returns:
-    list: robustなeps（許容範囲内最大eps）を格納したリスト
+    robustness_value (float): Adversarial Robustnessの値
     """
-    max_eps = None
-    max_eps_list = []
-    for eps, robustness in zip(eps_values, robustness_values):
-        if robustness <= epsilon:
-            max_eps = eps
-    
-    # 結果を表示
-    print(f"許容範囲内最大（Empirical Robustness:{epsilon}）のepsは {max_eps:.2f} です")
-    max_eps_list.append(max_eps)
         
-    return np.array(max_eps_list)
+    return robustness_value
 
 
 # In[ ]:
@@ -618,7 +596,7 @@ def move_log(file_path: str=None) -> str:
 @ait_main(ait_output, path_helper, is_ait_launch)
 
 def main() -> None:
-    
+
     #モデルの読み込み
     trained_model = ait_input.get_inventory_path('trained_model')
     try:
@@ -719,18 +697,16 @@ def main() -> None:
         # PyTorch Regressorのラップ
         loss_fn = nn.MSELoss()  # 回帰用損失関数
         input_shape = features_tensor.shape[1:]  # 特徴量の数（入力の形状）
-
-        regressor = PyTorchRegressor(model=model, loss=loss_fn, input_shape=input_shape)
+        regressor = PyTorchRegressor(model=model,
+                                     loss=loss_fn,
+                                     input_shape=input_shape,
+                                    )
         
-        # Empirical Robustnessの計算
-        robustness_values, eps_values = calculate_empirical_robustness(features_tensor, deltas, model, regressor, norm)
-            
-        # プロット
-        plot_robustness(eps_values, robustness_values)
+        # Adversarial Robustnessの計算
+        robustness_value, violation_rate_list = calculate_robustness_for_regression(features_tensor, model, regressor,epsilon,delta_lower,delta_upper,delta_increment, norm)
+        print_plot(deltas,violation_rate_list)
+        output_robustness_for_regression(robustness_value)
         
-        # max_epsをリストに格納
-        max_eps_list = find_max_eps_within_robustness(eps_values, robustness_values, epsilon)
-
     move_log()
     
 
@@ -775,10 +751,4 @@ if not is_ait_launch:
     # output License.txt
     license_generator = LicenseGenerator()
     license_generator.write('../top_dir/LICENSE.txt', ait_creation_year, ait_owner)
-
-
-# In[ ]:
-
-
-
 
