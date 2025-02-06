@@ -38,7 +38,7 @@
 
 # [uneditable]
 
-# In[1]:
+# In[ ]:
 
 
 # Determine whether to start AIT or jupyter by startup argument
@@ -99,7 +99,7 @@ if not is_ait_launch:
 
 # #### #3-3 [uneditable]
 
-# In[ ]:
+# In[5]:
 
 
 if not is_ait_launch:
@@ -113,7 +113,7 @@ if not is_ait_launch:
 
 # #### #4-1 [required]
 
-# In[ ]:
+# In[6]:
 
 
 # import if you need modules cell
@@ -134,7 +134,7 @@ import math
 
 # #### #4-2 [uneditable]
 
-# In[ ]:
+# In[7]:
 
 
 # must use modules
@@ -153,7 +153,7 @@ from ait_sdk.develop.annotation import measures, resources, downloads, ait_main 
 
 # [required]
 
-# In[ ]:
+# In[8]:
 
 
 if not is_ait_launch:
@@ -166,7 +166,6 @@ if not is_ait_launch:
     manifest_genenerator.add_ait_licenses('Apache License Version 2.0')
     manifest_genenerator.add_ait_keywords('Robustness')
     manifest_genenerator.add_ait_keywords('Adversarial')
-    manifest_genenerator.add_ait_keywords('Empirical')
     manifest_genenerator.add_ait_keywords('image')
     manifest_genenerator.add_ait_keywords('table')
     manifest_genenerator.set_ait_quality('https://ait-hub.pj.aist.go.jp/ait-hub/api/0.0.1/qualityDimensions/機械学習品質マネジメントガイドライン第三版/C-2機械学習モデルの安定性')
@@ -243,7 +242,7 @@ if not is_ait_launch:
 
 # [required]
 
-# In[ ]:
+# In[9]:
 
 
 if not is_ait_launch:
@@ -277,7 +276,7 @@ if not is_ait_launch:
 
 # [uneditable]
 
-# In[ ]:
+# In[10]:
 
 
 logger = get_logger()
@@ -307,7 +306,7 @@ ait_manifest.read_json(path_helper.get_manifest_file_path())
 
 # [required]
 
-# In[ ]:
+# In[11]:
 
 
 @log(logger)
@@ -331,7 +330,7 @@ def load_h5_data(h5_filepath,image_dataset_name,label_dataset_name, batch_size=6
     return images ,labels
 
 
-# In[ ]:
+# In[12]:
 
 
 @log(logger)
@@ -349,7 +348,7 @@ def images_shape(images,channels):
     return images
 
 
-# In[ ]:
+# In[13]:
 
 
 @log(logger)
@@ -439,7 +438,7 @@ def calcurate_robustness(classifier,images,labels,channels,epsilon,delta_lower,d
     return class_robustness,violation_rate_list
 
 
-# In[ ]:
+# In[14]:
 
 
 @log(logger)
@@ -474,7 +473,7 @@ def print_plot(deltas,violation_rate_list,cls=None, file_path: str=None):
     return file_path
 
 
-# In[ ]:
+# In[15]:
 
 
 @log(logger)
@@ -492,7 +491,7 @@ def Robustness_list(class_robustness,classifier):
     return np.array(Adversarial_Robsutness_list)
 
 
-# In[ ]:
+# In[16]:
 
 
 @log(logger)
@@ -515,7 +514,7 @@ def calculate_robustness_for_regression(features_tensor, model, regressor,epsilo
     #δの範囲の設定
     deltas = np.arange(delta_lower,delta_upper+delta_increment,delta_increment)           
             
-    # それぞれのdeltaに対するEmpirical Robustnessを計算
+    # それぞれのdeltaに対するAdversarial Robustnessを計算
     for delta in deltas:
         if delta ==0:
             #元のデータに対する予測確率
@@ -557,7 +556,7 @@ def calculate_robustness_for_regression(features_tensor, model, regressor,epsilo
     return robustness ,violation_rate_list
 
 
-# In[ ]:
+# In[17]:
 
 
 @log(logger)
@@ -576,7 +575,7 @@ def output_robustness_for_regression(robustness_value):
     return robustness_value
 
 
-# In[ ]:
+# In[18]:
 
 
 @log(logger)
@@ -589,7 +588,7 @@ def move_log(file_path: str=None) -> str:
 
 # [required]
 
-# In[ ]:
+# In[19]:
 
 
 @log(logger)
@@ -715,7 +714,7 @@ def main() -> None:
 
 # [uneditable]
 
-# In[ ]:
+# In[20]:
 
 
 if __name__ == '__main__':
@@ -726,7 +725,7 @@ if __name__ == '__main__':
 
 # [required]
 
-# In[ ]:
+# In[21]:
 
 
 ## sample ##
@@ -738,7 +737,7 @@ ait_creation_year='2024'
 
 # [uneditable] 
 
-# In[ ]:
+# In[22]:
 
 
 if not is_ait_launch:
